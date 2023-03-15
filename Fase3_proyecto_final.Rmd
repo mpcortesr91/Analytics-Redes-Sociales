@@ -1,0 +1,388 @@
+---
+title: "Fase 3: Proyecto Final"
+output: html_notebook
+---
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+```{r}
+
+#Intalación de librerias
+
+#install.packages("network")
+#install.packages("sna")
+
+```
+
+```{r}
+library(readxl)
+library(Hmisc)
+library(corrplot)
+library("dplyr")
+library(network)
+library(sna)
+library(igraph)
+library(ergm)
+```
+
+
+```{r}
+nodos <- read_xlsx("~/MIAD/4S/1C/Analytics en Redes Sociales/Proyecto/Fase 3/Nodos.xlsx")
+
+nodos
+
+```
+```{r}
+arcos <- read_xlsx("~/MIAD/4S/1C/Analytics en Redes Sociales/Proyecto/Fase 3/Arcos.xlsx")
+arcos
+```
+
+
+```{r}
+colnames(nodos)
+```
+Como se puede observar la base contiene 34 variables
+Vamos a ver unos descriptivos preliminares de los datos para ver diferentes métricas descriptivas utilizando la función **describe** del paquete **Hmisc**.
+La función **describe** incluye diferentes métricas de estadística descriptiva como la media, diferentes niveles de percentiles, mínimo, máximo, entre otros.
+
+```{r}
+describe(nodos)
+```
+
+Después de revisar las métricas descriptivas, vamos a observar las correlaciones entre las variables. Para eso utilizaremos las gráficas de correlaciones del paquete **corrplot**.
+
+
+```{r}
+nodos_num <- select_if(nodos, is.numeric)
+correlaciones <- cor(nodos_num) #Calcular las correlaciones entre las variables
+corrplot(correlaciones, method="color") #Graficas las correlaciones
+```
+
+Lo primero que vamos a hacer es crear el grafo desde el archivo de **edges**.
+
+```{r}
+grafo <- graph_from_edgelist(as.matrix(arcos))
+
+```
+
+Ahora vamos a crear las matrices asociadas a la matriz de adyacencia para la variable y y las matrices de las covariables.
+
+```{r}
+# Crear la matriz de adyacencia para la variable y
+
+y<- as.matrix(as_adjacency_matrix(grafo))
+
+```
+
+```{r}
+# Crear x1 asociado al grado total
+grado_total <- degree(grafo,mode = "all") 
+grado_total <- (grado_total-min(grado_total))/(max(grado_total)-min(grado_total))
+
+x1 <- matrix(NA,nrow(nodos),nrow(nodos))
+for(i in 1:nrow(nodos)){
+  for(j in 1:nrow(nodos)){
+    x1[i,j]<-1- abs(grado_total[i]-grado_total[j])
+  }
+}
+x1<-x1[1:796,1:796]
+qap_fit <-netlogit(y,list(x1),rep = 10) 
+summary(qap_fit)
+exp(coef(qap_fit))
+
+```
+```{r}
+# x2 Number of Funding Rounds
+
+NOFR <- (nodos$`Number of Funding Rounds` -min(nodos$`Number of Funding Rounds`))/(max(nodos$`Number of Funding Rounds`)-min(nodos$`Number of Funding Rounds`))
+
+x2 <- matrix(NA,nrow(nodos),nrow(nodos))
+for(i in 1:nrow(nodos)){
+  for(j in 1:nrow(nodos)){
+    x2[i,j]<-1-abs(NOFR[i]-NOFR[j])
+  }
+}
+x2<-x2[1:796,1:796]
+qap_fit <-netlogit(y,list(x2),rep = 10) 
+exp(coef(qap_fit))
+summary(qap_fit)
+```
+
+
+```{r}
+# x3 Number of Investors
+
+NOI <- (nodos$`Number of Investors` -min(nodos$`Number of Investors`))/(max(nodos$`Number of Investors`)-min(nodos$`Number of Investors`))
+
+x3 <- matrix(NA,nrow(nodos),nrow(nodos))
+for(i in 1:nrow(nodos)){
+  for(j in 1:nrow(nodos)){
+    x3[i,j]<-1-abs(NOI[i]-NOI[j])
+  }
+}
+x3<-x3[1:796,1:796]
+qap_fit <-netlogit(y,list(x3),rep = 10) 
+exp(coef(qap_fit))
+summary(qap_fit)
+
+```
+
+
+```{r}
+# x4 Last Funding Amount Currency (in USD)
+
+LFAC <- (nodos$`Last Funding Amount Currency (in USD)` -min(nodos$`Last Funding Amount Currency (in USD)`, na.rm = TRUE))/(max(nodos$`Last Funding Amount Currency (in USD)`, na.rm = TRUE)-min(nodos$`Last Funding Amount Currency (in USD)`, na.rm = TRUE))
+
+x4 <- matrix(NA,nrow(nodos),nrow(nodos))
+for(i in 1:nrow(nodos)){for(j in 1:nrow(nodos)){x4[i,j]<-1-abs(LFAC[i]-LFAC[j])}}
+x4<-x4[1:796,1:796]
+qap_fit <-netlogit(y,list(x4),rep = 10) 
+exp(coef(qap_fit))
+summary(qap_fit)
+
+```
+
+
+```{r}
+# x5 Last Equity Funding Amount Currency (in USD)
+
+LEFAC<-(nodos$`Last Equity Funding Amount Currency (in USD)` -min(nodos$`Last Equity Funding Amount Currency (in USD)`, na.rm = TRUE))/(max(nodos$`Last Equity Funding Amount Currency (in USD)`, na.rm = TRUE)-min(nodos$`Last Equity Funding Amount Currency (in USD)`, na.rm = TRUE))
+
+x5<-matrix(NA,nrow(nodos),nrow(nodos))
+for(i in 1:nrow(nodos)){for(j in 1:nrow(nodos)){x5[i,j]<-1-abs(LEFAC[i]-LEFAC[j])}}
+
+x5<-x5[1:796,1:796]
+
+qap_fit <-netlogit(y,list(x5),rep = 10)
+exp(coef(qap_fit))
+summary(qap_fit)
+
+```
+
+```{r}
+# x6 Aberdeen - IT Spend Currency (in USD)
+ITSC<-(nodos$`Aberdeen - IT Spend Currency (in USD)` -min(nodos$`Aberdeen - IT Spend Currency (in USD)`, na.rm = TRUE))/(max(nodos$`Aberdeen - IT Spend Currency (in USD)`, na.rm = TRUE)-min(nodos$`Aberdeen - IT Spend Currency (in USD)`, na.rm = TRUE))
+
+x6<-matrix(NA,nrow(nodos),nrow(nodos))
+for(i in 1:nrow(nodos)){for(j in 1:nrow(nodos)){x6[i,j]<-1-abs(ITSC[i]-ITSC[j])}}
+
+x6<-x6[1:796,1:796]
+qap_fit <-netlogit(y,list(x6),rep = 10)
+exp(coef(qap_fit))
+summary(qap_fit)
+
+```
+
+```{r}
+# x7 Number of Diversity Investments
+NDI<-(nodos$`Number of Diversity Investments` -min(nodos$`Number of Diversity Investments`, na.rm = TRUE))/(max(nodos$`Number of Diversity Investments`, na.rm = TRUE)-min(nodos$`Number of Diversity Investments`, na.rm = TRUE))
+
+x7<-matrix(NA,nrow(nodos),nrow(nodos))
+for(i in 1:nrow(nodos)){for(j in 1:nrow(nodos)){x7[i,j]<-1-abs(NDI[i]-NDI[j])}}
+
+x7<-x7[1:796,1:796]
+qap_fit <-netlogit(y,list(x7),rep = 10)
+
+exp(coef(qap_fit))
+summary(qap_fit)
+```
+
+```{r}
+# x8 Number of Events
+NEV<-(nodos$`Number of Events` -min(nodos$`Number of Events`, na.rm = TRUE))/(max(nodos$`Number of Events`, na.rm = TRUE)-min(nodos$`Number of Events`, na.rm = TRUE))
+
+x8<-matrix(NA,nrow(nodos),nrow(nodos))
+for(i in 1:nrow(nodos)){for(j in 1:nrow(nodos)){x8[i,j]<-1-abs(NEV[i]-NEV[j])}}
+
+x8<-x8[1:796,1:796]
+qap_fit <-netlogit(y,list(x8),rep = 10)
+
+exp(coef(qap_fit))
+summary(qap_fit)
+```
+
+```{r}
+# x9 Number of Exits
+NEX<-(nodos$`Number of Exits` -min(nodos$`Number of Exits`, na.rm = TRUE))/(max(nodos$`Number of Exits`, na.rm = TRUE)-min(nodos$`Number of Exits`, na.rm = TRUE))
+
+x9<-matrix(NA,nrow(nodos),nrow(nodos))
+for(i in 1:nrow(nodos)){for(j in 1:nrow(nodos)){x9[i,j]<-1-abs(NEX[i]-NEX[j])}}
+
+x9<-x9[1:796,1:796]
+qap_fit <-netlogit(y,list(x9),rep = 10)
+
+exp(coef(qap_fit))
+summary(qap_fit)
+```
+
+```{r}
+# x10 Number of Investments
+Ninv<-(nodos$`Number of Investments` -min(nodos$`Number of Investments`, na.rm = TRUE))/(max(nodos$`Number of Investments`, na.rm = TRUE)-min(nodos$`Number of Investments`, na.rm = TRUE))
+
+x10<-matrix(NA,nrow(nodos),nrow(nodos))
+for(i in 1:nrow(nodos)){for(j in 1:nrow(nodos)){x10[i,j]<-1-abs(Ninv[i]-Ninv[j])}}
+
+x10<-x10[1:796,1:796]
+qap_fit <-netlogit(y,list(x10),rep = 10)
+
+exp(coef(qap_fit))
+summary(qap_fit)
+```
+
+```{r}
+#x11 Number of Lead Investments
+NLInvment<-(nodos$`Number of Lead Investments` -min(nodos$`Number of Lead Investments`, na.rm = TRUE))/(max(nodos$`Number of Lead Investments`, na.rm = TRUE)-min(nodos$`Number of Lead Investments`, na.rm = TRUE))
+
+x11<-matrix(NA,nrow(nodos),nrow(nodos))
+for(i in 1:nrow(nodos)){for(j in 1:nrow(nodos)){x11[i,j]<-1-abs(NLInvment[i]-NLInvment[j])}}
+
+x11<-x11[1:796,1:796]
+qap_fit <-netlogit(y,list(x11),rep = 10)
+
+exp(coef(qap_fit))
+summary(qap_fit)
+```
+
+```{r}
+#x12 Number of Lead Investors
+NLInvtors<-(nodos$`Number of Lead Investors` -min(nodos$`Number of Lead Investors`, na.rm = TRUE))/(max(nodos$`Number of Lead Investors`, na.rm = TRUE)-min(nodos$`Number of Lead Investors`, na.rm = TRUE))
+
+x12<-matrix(NA,nrow(nodos),nrow(nodos))
+for(i in 1:nrow(nodos)){for(j in 1:nrow(nodos)){x12[i,j]<-1-abs(NLInvtors[i]-NLInvtors[j])}}
+
+x12<-x12[1:796,1:796]
+qap_fit <-netlogit(y,list(x12),rep = 10)
+
+exp(coef(qap_fit))
+summary(qap_fit)
+```
+
+```{r}
+#x13 SEMrush - Average Visits (6 months)
+SEMAV<-(nodos$`SEMrush - Average Visits (6 months)` -min(nodos$`SEMrush - Average Visits (6 months)`, na.rm = TRUE))/(max(nodos$`SEMrush - Average Visits (6 months)`, na.rm = TRUE)-min(nodos$`SEMrush - Average Visits (6 months)`, na.rm = TRUE))
+
+x13<-matrix(NA,nrow(nodos),nrow(nodos))
+for(i in 1:nrow(nodos)){for(j in 1:nrow(nodos)){x13[i,j]<-1-abs(SEMAV[i]-SEMAV[j])}}
+
+x13<-x13[1:796,1:796]
+qap_fit <-netlogit(y,list(x13),rep = 10)
+
+exp(coef(qap_fit))
+summary(qap_fit)
+```
+
+```{r}
+#x14 SEMrush - Monthly Visits
+SEMMV<-(nodos$`SEMrush - Monthly Visits` -min(nodos$`SEMrush - Monthly Visits`, na.rm = TRUE))/(max(nodos$`SEMrush - Monthly Visits`, na.rm = TRUE)-min(nodos$`SEMrush - Monthly Visits`, na.rm = TRUE))
+
+x14<-matrix(NA,nrow(nodos),nrow(nodos))
+for(i in 1:nrow(nodos)){for(j in 1:nrow(nodos)){x14[i,j]<-1-abs(SEMMV[i]-SEMMV[j])}}
+
+x14<-x14[1:796,1:796]
+qap_fit <-netlogit(y,list(x14),rep = 10)
+
+exp(coef(qap_fit))
+summary(qap_fit)
+```
+
+```{r}
+#x15 SEMrush - Visit Duration
+SEMVD<-(nodos$`SEMrush - Visit Duration` -min(nodos$`SEMrush - Visit Duration`, na.rm = TRUE))/(max(nodos$`SEMrush - Visit Duration`, na.rm = TRUE)-min(nodos$`SEMrush - Visit Duration`, na.rm = TRUE))
+
+x15<-matrix(NA,nrow(nodos),nrow(nodos))
+for(i in 1:nrow(nodos)){for(j in 1:nrow(nodos)){x15[i,j]<-1-abs(SEMVD[i]-SEMVD[j])}}
+
+x15<-x15[1:796,1:796]
+qap_fit <-netlogit(y,list(x15),rep = 10)
+
+exp(coef(qap_fit))
+summary(qap_fit)
+```
+
+```{r}
+#x16 Total Funding Amount Currency (in USD)
+TFAC<-(nodos$`Total Funding Amount Currency (in USD)` -min(nodos$`Total Funding Amount Currency (in USD)`, na.rm = TRUE))/(max(nodos$`Total Funding Amount Currency (in USD)`, na.rm = TRUE)-min(nodos$`Total Funding Amount Currency (in USD)`, na.rm = TRUE))
+
+x16<-matrix(NA,nrow(nodos),nrow(nodos))
+for(i in 1:nrow(nodos)){for(j in 1:nrow(nodos)){x16[i,j]<-1-abs(TFAC[i]-TFAC[j])}}
+
+x16<-x16[1:796,1:796]
+qap_fit <-netlogit(y,list(x16),rep = 10)
+
+exp(coef(qap_fit))
+summary(qap_fit)
+```
+```{r}
+correlation_df<-cor(nodos[,c(5:10,13,16,18,23,26,27:30,33)],nodos[,c(5:10,13,16,18,23,26,27:30,33)],method = "spearman", use="pairwise.complete.obs")
+
+c_df <- Hmisc::rcorr(cor(correlation_df), type='pearson')
+cor<-c_df$r
+
+corrplot(corr=c_df$r, p.mat=c_df$P, sig.level=0.05,method='color', diag=FALSE, addCoef.col=1, type='upper', insig='blank',number.cex=.01, tl.srt = 45)
+```
+```{r}
+df <- nodos
+df <- df %>% rename("ITSC"="Aberdeen - IT Spend Currency (in USD)",
+"LEFAC"="Last Equity Funding Amount Currency (in USD)",
+"LFAC"="Last Funding Amount Currency (in USD)",
+"NDI"="Number of Diversity Investments",
+"NEV"="Number of Events",
+"NEX"="Number of Exits",
+"Ninv"="Number of Investments",
+"NLInvment"="Number of Lead Investments",
+"NLInvtors"="Number of Lead Investors",
+"NOFR"="Number of Funding Rounds",
+"NOI"="Number of Investors",
+"SEMAV"="SEMrush - Average Visits (6 months)",
+"SEMMV"="SEMrush - Monthly Visits",
+"SEMVD"="SEMrush - Visit Duration",
+"TFAC"="Total Funding Amount Currency (in USD)")
+```
+
+```{r}
+colnames(df)
+
+correlation_df1<-cor(df[,c(5:10,13,18,23,26,27:30,33)],df[,c(5:10,13,18,23,26,27:30,33)],method = "spearman", use="pairwise.complete.obs")
+
+c_df1 <- Hmisc::rcorr(cor(correlation_df1), type='pearson')
+cor1<-c_df$r
+
+corrplot(corr=c_df1$r, p.mat=c_df1$P, sig.level=0.05,method='color', diag=FALSE, addCoef.col=1, type='upper', insig='blank',number.cex=.5)
+```
+
+```{r}
+# Modelo con 15 variables y grado
+suppressWarnings({
+qap_fit <-netlogit(y,list(x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16),rep = 10) 
+
+exp(coef(qap_fit))
+summary(qap_fit)
+})
+```
+
+```{r}
+# Modelo con grado y x2 (Number of Funding Rounds)
+suppressWarnings({
+qap_fit <-netlogit(y,list(x1,x2),rep = 10) 
+
+exp(coef(qap_fit))
+summary(qap_fit)
+})
+```
+
+```{r}
+# Modelo con grado y 3 variables (Number of Funding Rounds, Number of Investors, Number of Investment)
+suppressWarnings({
+qap_fit <-netlogit(y,list(x1,x2,x3,x8),rep = 50)
+
+exp(coef(qap_fit))
+summary(qap_fit)
+})
+```
+```{r}
+# Modelo con grado y 4 variables no correlacionadas
+suppressWarnings({
+qap_fit <-netlogit(y,list(x1,x2,x3,x8, x10),rep = 50)
+
+exp(coef(qap_fit))
+summary(qap_fit)
+})
+```
